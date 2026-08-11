@@ -1,0 +1,141 @@
+// K-SDGs 환경분야 지표 대시보드 — 데이터 모델
+// 계층: Goal(목표) > Target(세부목표) > Indicator(지표) > IndicatorValue(연도별 실적)
+// 프레임워크 중립적으로 설계 — 나중에 자체 환경계획 지표로 교체해도 스키마 변경 불필요.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  code        String   @unique // 예: G13
+  no          String // 표시용 번호. 예: 13
+  name        String
+  description String?
+  color       String? // 비우면 팔레트에서 자동 배정
+  icon        String? // 이모지
+  order       Int      @default(0)
+  published   Boolean  @default(true) // false = 임시저장(비공개)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  targets Target[]
+  actions Action[]
+}
+
+model Target {
+  id          String   @id @default(cuid())
+  code        String   @unique // 예: 13-1
+  goalId      String
+  name        String
+  description String?
+  order       Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goal       Goal        @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  indicators Indicator[]
+  actions    Action[]
+
+  @@index([goalId])
+}
+
+model Indicator {
+  id       String @id @default(cuid())
+  code     String @unique // 예: 13-1-1
+  targetId String
+  name     String
+
+  definition String? // 지표 설명
+  method     String? // 산출식
+  unit       String? // 단위
+  direction  String  @default("up") // up = 클수록 좋음 / down = 작을수록 좋음
+
+  baselineYear  Int?
+  baselineValue Float?
+  targetYear    Int?
+  targetValue   Float? // 비우면 "모니터링 지표"
+
+  source      String?
+  sourceUrl   String?
+  updateCycle String?
+  custodian   String?
+
+  statusOverride String? // 자동 판정을 덮어쓸 때만
+  isHeadline     Boolean @default(false)
+  published      Boolean @default(true)
+  note           String?
+  order          Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  target Target           @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  values IndicatorValue[]
+
+  @@index([targetId])
+}
+
+model IndicatorValue {
+  id          String   @id @default(cuid())
+  indicatorId String
+  year        Int
+  value       Float
+  region      String   @default("전국")
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  indicator Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+
+  @@unique([indicatorId, year, region])
+  @@index([indicatorId])
+}
+
+model Action {
+  id          String   @id @default(cuid())
+  code        String   @unique // 예: A-13-01
+  goalId      String?
+  targetId    String?
+  title       String
+  summary     String?
+  status      String   @default("추진중") // 완료 | 추진중 | 지연 | 예정
+  dueYear     Int?
+  responsible String?
+  lastUpdate  String? // YYYY-MM-DD
+  links       String? // "제목|URL;제목|URL"
+  order       Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goal   Goal?   @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  target Target? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([goalId])
+}
+
+model Config {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  at       DateTime @default(now())
+  actor    String   @default("관리자")
+  action   String // create | update | delete | import | publish
+  entity   String // Goal | Target | Indicator | IndicatorValue | Action | Config
+  entityId String?
+  label    String? // 사람이 읽을 대상 이름
+  detail   String? // 변경 요약(JSON)
+
+  @@index([at])
+}
