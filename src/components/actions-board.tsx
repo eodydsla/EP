@@ -35,9 +35,11 @@ export function ActionStatusChip({ status, size = "default" }: { status: string;
 export function ActionsBoard({
   actions,
   goals,
+  level1Label = "목표",
 }: {
   actions: DashAction[];
   goals: { id: string; no: string; name: string; color: string }[];
+  level1Label?: string;
 }) {
   const [status, setStatus] = useState<string>("all");
   const [goalId, setGoalId] = useState<string>("all");
@@ -131,9 +133,9 @@ export function ActionsBoard({
           value={goalId}
           onChange={(e) => setGoalId(e.target.value)}
           className="h-9 rounded-md border bg-background px-2 text-sm"
-          aria-label="목표"
+          aria-label={level1Label}
         >
-          <option value="all">목표 전체</option>
+          <option value="all">{level1Label} 전체</option>
           {goals.map((g) => (
             <option key={g.id} value={g.id}>
               {g.no}. {g.name}

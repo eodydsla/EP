@@ -1,0 +1,4 @@
+track_id,track_name,track_desc,color,icon,order,display
+plan,계획이행 모니터링,환경계획의 목표·세부목표별 이행 상황과 달성도를 추적합니다,#1864AB,🧭,1,TRUE
+state,환경상태 모니터링,대기·물·생활환경 등 실제 환경 여건이 어떻게 변하고 있는지 관측합니다,#0CA678,🌍,2,TRUE
+perception,환경체감 모니터링,시민이 실제로 느끼는 환경 만족도·불편·인식 수준을 조사로 확인합니다,#7048E8,💬,3,TRUE

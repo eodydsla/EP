@@ -11,9 +11,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// 모니터링 영역 — 계획이행 / 환경상태 / 환경체감처럼 대시보드를 나누는 최상위 축.
+/// 메뉴가 이 테이블에서 생성되므로 영역을 추가하면 메뉴도 자동으로 늘어난다.
+model Track {
+  id          String   @id @default(cuid())
+  code        String   @unique // URL 경로로 쓰인다. 예: plan / state / perception
+  name        String
+  description String?
+  color       String? // 비우면 팔레트에서 자동 배정
+  icon        String?
+  order       Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goals Goal[]
+}
+
 model Goal {
   id          String   @id @default(cuid())
   code        String   @unique // 예: G13
+  trackId     String
   no          String // 표시용 번호. 예: 13
   name        String
   description String?
@@ -24,8 +42,11 @@ model Goal {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  track   Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
   targets Target[]
   actions Action[]
+
+  @@index([trackId])
 }
 
 model Target {

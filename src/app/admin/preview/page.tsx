@@ -12,11 +12,10 @@ export const dynamic = "force-dynamic";
 
 /**
  * 관리자 미리보기 — 임시저장(비공개) 항목까지 포함해서
- * 공개 화면과 동일한 컴포넌트로 렌더한다.
+ * 공개 화면과 동일한 컴포넌트로 렌더한다. 모니터링 영역별로 나눠 보여준다.
  */
 export default async function PreviewPage() {
-  const { goals, indicators, config } = await getDashboard(true);
-  const computed = indicators.map((i) => i.computed);
+  const { tracks, indicators, config } = await getDashboard(true);
   const drafts = indicators.filter((i) => !i.published).length;
 
   return (
@@ -41,35 +40,60 @@ export default async function PreviewPage() {
         </AlertDescription>
       </Alert>
 
-      <section>
-        <h2 className="mb-3 text-base font-bold">개요</h2>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-xs text-muted-foreground">{config.framework_name}</p>
-              <h3 className="text-xl font-bold">{config.site_title}</h3>
-              <p className="text-sm text-muted-foreground">{config.site_subtitle}</p>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">전체 평균 달성도</div>
-              <div className="text-3xl font-bold tabular-nums">
-                {averageProgress(computed) === null ? "—" : `${Math.round(averageProgress(computed)!)}%`}
+      {tracks.map((track) => {
+        const computed = track.indicators.map((i) => i.computed);
+        const avg = averageProgress(computed);
+        return (
+          <section key={track.id} className="overflow-hidden rounded-xl border bg-card">
+            <div className="h-1.5 w-full" style={{ backgroundColor: track.color }} />
+            <div className="p-4">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    {config.level0_label} · /{track.code}
+                    {!track.published && <span className="ml-1 text-amber-700">(비공개)</span>}
+                  </p>
+                  <h2 className="text-xl font-bold">
+                    {track.icon ? `${track.icon} ` : ""}
+                    {track.name}
+                  </h2>
+                  {track.description && <p className="text-sm text-muted-foreground">{track.description}</p>}
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">평균 달성도</div>
+                  <div className="text-3xl font-bold tabular-nums" style={{ color: track.tone.deep }}>
+                    {avg === null ? "—" : `${Math.round(avg)}%`}
+                  </div>
+                </div>
+              </div>
+
+              <SummaryCards
+                total={track.indicators.length}
+                counts={countByStatus(computed)}
+                totalLabel={`전체 ${config.level3_label}`}
+              />
+
+              <div className="mt-4 grid gap-4 grid-cols-[repeat(auto-fit,minmax(340px,1fr))]">
+                {track.goals.map((g) => (
+                  <GoalCard key={g.id} goal={g} level1Label={config.level1_label} level3Label={config.level3_label} />
+                ))}
+              </div>
+
+              <div className="mt-6">
+                <h3 className="mb-3 text-sm font-bold">
+                  {track.name} · {config.level3_label}
+                </h3>
+                <IndicatorsExplorer
+                  goals={track.goals}
+                  indicators={track.indicators}
+                  level1Label={config.level1_label}
+                  level2Label={config.level2_label}
+                />
               </div>
             </div>
-          </div>
-          <SummaryCards total={indicators.length} counts={countByStatus(computed)} />
-          <div className="mt-4 grid gap-4 grid-cols-[repeat(auto-fit,minmax(340px,1fr))]">
-            {goals.map((g) => (
-              <GoalCard key={g.id} goal={g} level3Label={config.level3_label} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-base font-bold">{config.level3_label}</h2>
-        <IndicatorsExplorer goals={goals} indicators={indicators} level2Label={config.level2_label} />
-      </section>
+          </section>
+        );
+      })}
     </div>
   );
 }

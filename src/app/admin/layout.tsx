@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 const NAV = [
   { href: "/admin", label: "개요" },
-  { href: "/admin/structure", label: "목표·세부목표" },
+  { href: "/admin/structure", label: "영역·목표·세부목표" },
   { href: "/admin/indicators", label: "지표" },
   { href: "/admin/actions", label: "이행과제" },
   { href: "/admin/data", label: "가져오기·내보내기" },

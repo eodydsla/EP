@@ -76,6 +76,58 @@ export async function logoutAction() {
   redirect("/");
 }
 
+// ── 모니터링 영역 ───────────────────────────────────────────────
+export async function saveTrack(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const id = s(fd, "id");
+    const data = {
+      code: req(fd, "code", "영역 코드"),
+      name: req(fd, "name", "영역명"),
+      description: s(fd, "description"),
+      color: s(fd, "color"),
+      icon: s(fd, "icon"),
+      order: i(fd, "order") ?? 0,
+      published: bool(fd, "published"),
+    };
+    if (!/^[a-z0-9-]+$/.test(data.code)) {
+      return { ok: false, message: "영역 코드는 주소에 쓰이므로 영문 소문자·숫자·하이픈만 가능합니다." };
+    }
+    if (id) {
+      const t = await prisma.track.update({ where: { id }, data });
+      await log("update", "Track", t.id, t.name, data);
+    } else {
+      const t = await prisma.track.create({ data });
+      await log("create", "Track", t.id, t.name, data);
+    }
+    refresh();
+    return { ok: true, message: id ? "영역을 저장했습니다." : "영역을 추가했습니다." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function deleteTrack(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const id = req(fd, "id", "id");
+    const t = await prisma.track.findUnique({
+      where: { id },
+      include: { goals: { include: { targets: { include: { indicators: true } } } } },
+    });
+    if (!t) return { ok: false, message: "이미 삭제된 영역입니다." };
+    const goals = t.goals.length;
+    const targets = t.goals.reduce((a, g) => a + g.targets.length, 0);
+    const indicators = t.goals.reduce((a, g) => a + g.targets.reduce((b2, x) => b2 + x.indicators.length, 0), 0);
+    await prisma.track.delete({ where: { id } });
+    await log("delete", "Track", id, t.name, { 목표: goals, 세부목표: targets, 지표: indicators });
+    refresh();
+    return { ok: true, message: `"${t.name}" 및 하위 ${indicators}개 지표를 삭제했습니다.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 // ── 목표 ────────────────────────────────────────────────────────
 export async function saveGoal(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   try {
@@ -83,6 +135,7 @@ export async function saveGoal(_prev: ActionResult | null, fd: FormData): Promis
     const id = s(fd, "id");
     const data = {
       code: req(fd, "code", "목표 코드"),
+      trackId: req(fd, "trackId", "상위 영역"),
       no: req(fd, "no", "목표 번호"),
       name: req(fd, "name", "목표명"),
       description: s(fd, "description"),
@@ -419,17 +472,20 @@ export async function importCsv(_prev: ActionResult | null, fd: FormData): Promi
     let created = 0;
     let updated = 0;
 
+    const tracks = new Map((await prisma.track.findMany()).map((t) => [t.code, t.id]));
     const goals = new Map((await prisma.goal.findMany()).map((g) => [g.code, g.id]));
     const targets = new Map((await prisma.target.findMany()).map((x) => [x.code, x.id]));
     const indicators = new Map((await prisma.indicator.findMany()).map((x) => [x.code, x.id]));
 
     if (replace) {
+      if (type === "tracks") await prisma.track.deleteMany();
       if (type === "goals") await prisma.goal.deleteMany();
       if (type === "targets") await prisma.target.deleteMany();
       if (type === "indicators") await prisma.indicator.deleteMany();
       if (type === "values") await prisma.indicatorValue.deleteMany();
       if (type === "actions") await prisma.action.deleteMany();
       if (type === "config") await prisma.config.deleteMany();
+      tracks.clear();
       goals.clear();
       targets.clear();
       indicators.clear();
@@ -438,10 +494,30 @@ export async function importCsv(_prev: ActionResult | null, fd: FormData): Promi
     for (const [idx, r] of rows.entries()) {
       const line = idx + 2;
       try {
-        if (type === "goals") {
-          const code = t(r, "goal_id");
-          if (!code) throw new Error("goal_id 없음");
+        if (type === "tracks") {
+          const code = t(r, "track_id");
+          if (!code) throw new Error("track_id 없음");
           const data = {
+            name: t(r, "track_name") ?? code,
+            description: t(r, "track_desc"),
+            color: t(r, "color"),
+            icon: t(r, "icon"),
+            order: ti(r, "order") ?? idx + 1,
+            published: tb(r, "display", true),
+          };
+          const existing = tracks.get(code);
+          const x = await prisma.track.upsert({ where: { code }, create: { code, ...data }, update: data });
+          tracks.set(code, x.id);
+          if (existing) updated++;
+          else created++;
+        } else if (type === "goals") {
+          const code = t(r, "goal_id");
+          const trackCode = t(r, "track_id");
+          if (!code) throw new Error("goal_id 없음");
+          const trackId = trackCode ? tracks.get(trackCode) : undefined;
+          if (!trackId) throw new Error(`상위 영역 ${trackCode ?? "(비어있음)"} 를 찾을 수 없음`);
+          const data = {
+            trackId,
             no: t(r, "goal_no") ?? code,
             name: t(r, "goal_name") ?? code,
             description: t(r, "goal_desc"),

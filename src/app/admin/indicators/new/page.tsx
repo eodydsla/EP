@@ -14,7 +14,10 @@ export default async function NewIndicatorPage({
 }) {
   const sp = await searchParams;
   const [targets, config, count] = await Promise.all([
-    prisma.target.findMany({ orderBy: [{ order: "asc" }, { code: "asc" }], include: { goal: true } }),
+    prisma.target.findMany({
+      orderBy: [{ order: "asc" }, { code: "asc" }],
+      include: { goal: { include: { track: true } } },
+    }),
     getConfig(),
     prisma.indicator.count(),
   ]);
@@ -26,7 +29,7 @@ export default async function NewIndicatorPage({
         <Alert>
           <InfoIcon />
           <AlertDescription>
-            먼저 {config.level1_label}과 {config.level2_label}을 만들어야 합니다.{" "}
+            먼저 {config.level0_label}·{config.level1_label}·{config.level2_label}을 만들어야 합니다.{" "}
             <Link href="/admin/structure" className="underline underline-offset-2">
               목표·세부목표 관리로 이동
             </Link>
@@ -51,7 +54,7 @@ export default async function NewIndicatorPage({
             id: t.id,
             code: t.code,
             name: t.name,
-            goalLabel: `${t.goal.no}. ${t.goal.name}`,
+            goalLabel: `${t.goal.track.name} › ${t.goal.no}. ${t.goal.name}`,
           }))}
           level2Label={config.level2_label}
           level3Label={config.level3_label}

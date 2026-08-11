@@ -12,7 +12,7 @@ export default async function AdminIndicatorsPage({
   searchParams: Promise<{ goal?: string; target?: string }>;
 }) {
   const sp = await searchParams;
-  const { goals, indicators, config } = await getDashboard(true);
+  const { tracks, goals, indicators, config } = await getDashboard(true);
 
   return (
     <div className="flex flex-col gap-5">
@@ -30,10 +30,14 @@ export default async function AdminIndicatorsPage({
 
       <AdminIndicatorTable
         indicators={indicators}
-        goals={goals.map((g) => ({ id: g.id, no: g.no, name: g.name, color: g.color }))}
+        tracks={tracks.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
+        goals={goals.map((g) => ({ id: g.id, no: g.no, name: g.name, color: g.color, trackId: g.trackId }))}
         targets={goals.flatMap((g) => g.targets.map((t) => ({ id: t.id, code: t.code, name: t.name, goalId: g.id })))}
         initialGoal={sp.goal}
         initialTarget={sp.target}
+        level0Label={config.level0_label}
+        level1Label={config.level1_label}
+        level2Label={config.level2_label}
       />
     </div>
   );

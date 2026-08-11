@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 
-export const CSV_TYPES = ["goals", "targets", "indicators", "values", "actions", "config"] as const;
+export const CSV_TYPES = ["tracks", "goals", "targets", "indicators", "values", "actions", "config"] as const;
 export type CsvType = (typeof CSV_TYPES)[number];
 
 export const CSV_HEADERS: Record<CsvType, string[]> = {
-  goals: ["goal_id", "goal_no", "goal_name", "goal_desc", "color", "icon", "order", "display"],
+  tracks: ["track_id", "track_name", "track_desc", "color", "icon", "order", "display"],
+  goals: ["goal_id", "track_id", "goal_no", "goal_name", "goal_desc", "color", "icon", "order", "display"],
   targets: ["target_id", "goal_id", "target_name", "target_desc", "order", "display"],
   indicators: [
     "indicator_id",
@@ -44,6 +45,7 @@ export const CSV_HEADERS: Record<CsvType, string[]> = {
 };
 
 export const CSV_LABELS: Record<CsvType, string> = {
+  tracks: "모니터링 영역",
   goals: "목표",
   targets: "세부목표",
   indicators: "지표",
@@ -63,17 +65,36 @@ export function toCsv(headers: string[], rows: (string | number | boolean | null
 
 const b = (v: boolean) => (v ? "TRUE" : "FALSE");
 
-/** 관리자 CSV 내려받기 — 업로드 포맷과 동일해서 그대로 되돌릴 수 있다 */
-export async function exportCsv(type: CsvType): Promise<string> {
+/**
+ * CSV 내려받기 — 업로드 포맷과 동일해서 그대로 되돌릴 수 있다.
+ * trackCode 를 주면 해당 모니터링 영역에 속한 행만 내보낸다(공개 화면의 영역별 내려받기용).
+ */
+export async function exportCsv(type: CsvType, trackCode?: string): Promise<string> {
   const h = CSV_HEADERS[type];
+  const byTrack = trackCode ? { track: { code: trackCode } } : {};
 
   switch (type) {
+    case "tracks": {
+      const rows = await prisma.track.findMany({
+        where: trackCode ? { code: trackCode } : {},
+        orderBy: [{ order: "asc" }, { code: "asc" }],
+      });
+      return toCsv(h, rows.map((t) => [t.code, t.name, t.description, t.color, t.icon, t.order, b(t.published)]));
+    }
     case "goals": {
-      const rows = await prisma.goal.findMany({ orderBy: [{ order: "asc" }, { code: "asc" }] });
-      return toCsv(h, rows.map((g) => [g.code, g.no, g.name, g.description, g.color, g.icon, g.order, b(g.published)]));
+      const rows = await prisma.goal.findMany({
+        where: byTrack,
+        orderBy: [{ order: "asc" }, { code: "asc" }],
+        include: { track: true },
+      });
+      return toCsv(
+        h,
+        rows.map((g) => [g.code, g.track.code, g.no, g.name, g.description, g.color, g.icon, g.order, b(g.published)]),
+      );
     }
     case "targets": {
       const rows = await prisma.target.findMany({
+        where: trackCode ? { goal: byTrack } : {},
         orderBy: [{ order: "asc" }, { code: "asc" }],
         include: { goal: true },
       });
@@ -81,6 +102,7 @@ export async function exportCsv(type: CsvType): Promise<string> {
     }
     case "indicators": {
       const rows = await prisma.indicator.findMany({
+        where: trackCode ? { target: { goal: byTrack } } : {},
         orderBy: [{ order: "asc" }, { code: "asc" }],
         include: { target: true },
       });
@@ -111,6 +133,7 @@ export async function exportCsv(type: CsvType): Promise<string> {
     }
     case "values": {
       const rows = await prisma.indicatorValue.findMany({
+        where: trackCode ? { indicator: { target: { goal: byTrack } } } : {},
         orderBy: [{ indicatorId: "asc" }, { year: "asc" }],
         include: { indicator: true },
       });
@@ -118,6 +141,7 @@ export async function exportCsv(type: CsvType): Promise<string> {
     }
     case "actions": {
       const rows = await prisma.action.findMany({
+        where: trackCode ? { goal: byTrack } : {},
         orderBy: [{ order: "asc" }, { code: "asc" }],
         include: { goal: true, target: true },
       });

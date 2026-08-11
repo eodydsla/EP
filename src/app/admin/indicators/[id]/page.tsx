@@ -20,9 +20,12 @@ export default async function EditIndicatorPage({ params }: { params: Promise<{ 
   const [indicator, targets, config, goals] = await Promise.all([
     prisma.indicator.findUnique({
       where: { id },
-      include: { values: { orderBy: { year: "asc" } }, target: { include: { goal: true } } },
+      include: { values: { orderBy: { year: "asc" } }, target: { include: { goal: { include: { track: true } } } } },
     }),
-    prisma.target.findMany({ orderBy: [{ order: "asc" }, { code: "asc" }], include: { goal: true } }),
+    prisma.target.findMany({
+      orderBy: [{ order: "asc" }, { code: "asc" }],
+      include: { goal: { include: { track: true } } },
+    }),
     getConfig(),
     prisma.goal.findMany({ orderBy: [{ order: "asc" }, { code: "asc" }] }),
   ]);
@@ -58,7 +61,8 @@ export default async function EditIndicatorPage({ params }: { params: Promise<{ 
           </div>
           <h1 className="mt-1 text-2xl font-bold">{indicator.name}</h1>
           <p className="text-sm text-muted-foreground">
-            {indicator.target.goal.no}. {indicator.target.goal.name} › {indicator.target.code} {indicator.target.name}
+            {indicator.target.goal.track.name} › {indicator.target.goal.no}. {indicator.target.goal.name} ›{" "}
+            {indicator.target.code} {indicator.target.name}
           </p>
         </div>
       </div>
@@ -163,7 +167,7 @@ export default async function EditIndicatorPage({ params }: { params: Promise<{ 
             id: t.id,
             code: t.code,
             name: t.name,
-            goalLabel: `${t.goal.no}. ${t.goal.name}`,
+            goalLabel: `${t.goal.track.name} › ${t.goal.no}. ${t.goal.name}`,
           }))}
           level2Label={config.level2_label}
           level3Label={config.level3_label}

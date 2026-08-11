@@ -2,7 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-K-SDGs 환경분야 지표 대시보드 — 공개 대시보드 + 이행과제 트래커 + 관리자 CRUD를 한 Next.js 앱에 합친 구조.
+환경계획 통합 모니터링 대시보드 — 공개 대시보드 + 이행과제 트래커 + 관리자 CRUD를 한 Next.js 앱에 합친 구조.
+**모니터링 영역(Track) 3개**(계획이행 / 환경상태 / 환경체감)로 나뉘며, 영역은 DB에서 오므로 추가하면 메뉴도 늘어난다.
 자세한 배경은 `REQUIREMENTS.md`(복원용 명세), `PLAN.md`(설계 결정 기록), `README.md`(실행 안내) 참고.
 
 ## Commands
@@ -41,9 +42,12 @@ Node 20+ 권장. Node 18에서는 Tailwind v4 네이티브 모듈(`@tailwindcss/
 **코드에 K-SDGs를 하드코딩하지 않는다.** 이 앱은 나중에 자체 환경계획 지표로 교체될 예정이고,
 그 전환이 "관리자에서 내용만 갈아끼우기"로 끝나야 한다.
 
-금지: 목표/지표 개수 상수, `13`·`G13` 같은 값이 로직에 등장, "목표"·"세부목표"·"지표"라는 **단어를
-화면에 직접 쓰는 것**. 계층 명칭은 `Config` 테이블의 `level1_label`/`level2_label`/`level3_label`에서
-주입한다 (`getConfig()` → `config.level3_label`).
+금지: 영역/목표/지표 개수 상수, `13`·`G13`·`"state"` 같은 값이 로직에 등장, "모니터링 영역"·"목표"·
+"세부목표"·"지표"라는 **단어를 화면에 직접 쓰는 것**. 계층 명칭은 `Config` 테이블의
+`level0_label`~`level3_label`에서 주입한다 (`getConfig()` → `config.level3_label`).
+
+**영역 코드를 코드에 넣지 말 것.** `/plan`·`/state`·`/perception`은 전부 DB의 `Track.code`에서 온다.
+메뉴, 라우팅(`[track]` 동적 세그먼트), 영역별 필터가 모두 여기에 의존한다.
 
 이 제약 때문에 파생되는 것들:
 - 그리드는 고정 열 수가 아니라 `grid-cols-[repeat(auto-fit,minmax(NNNpx,1fr))]` — 항목이 몇 개든 한 줄을 채운다
@@ -58,17 +62,19 @@ Node 20+ 권장. Node 18에서는 Tailwind v4 네이티브 모듈(`@tailwindcss/
 ```
 Prisma (SQLite)
   └─ lib/data.ts  getDashboard(includeUnpublished)
-       ├─ Goal ⊃ Target ⊃ Indicator ⊃ IndicatorValue 를 한 번에 조회
+       ├─ Track ⊃ Goal ⊃ Target ⊃ Indicator ⊃ IndicatorValue 를 한 번에 조회
        ├─ 각 Indicator 에 compute() 결과를 붙임 (lib/progress.ts)
        ├─ 목표색·톤을 지표까지 평탄화해 내려줌 (color, tone, goalName, targetCode …)
-       └─ DashGoal / DashIndicator / DashAction / config 반환
+       ├─ 이행과제는 goal→track 을 되짚어 각 Track.actions 에 배분
+       └─ DashTrack / DashGoal / DashIndicator / DashAction / config 반환
+  └─ findTrack(dashboard, code) 로 URL 의 영역 코드를 해석 (없으면 notFound())
   └─ 서버 컴포넌트가 받아 클라이언트 컴포넌트에 props 로 전달
 ```
 
 `getDashboard(true)`는 임시저장(`published=false`) 항목까지 포함한다. 관리자 화면과 `/admin/preview`만
 `true`를 쓰고, 공개 화면은 기본값(`false`).
 
-`DashIndicator`는 상위 계층 정보(goalName·targetCode·color·tone)를 **평탄화해서** 들고 있다.
+`DashIndicator`는 상위 계층 정보(trackCode·goalName·targetCode·color·tone)를 **평탄화해서** 들고 있다.
 필터·카드에서 매번 조인을 되짚지 않기 위한 의도이므로 유지할 것.
 
 ### 달성도 계산 — `src/lib/progress.ts` 한 곳에서만
@@ -116,15 +122,20 @@ Prisma (SQLite)
 `src/lib/csv.ts`의 `CSV_HEADERS`가 내보내기 스키마이고, `admin-actions.ts`의 `importCsv`가 같은 컬럼명을
 읽는다. **한쪽만 바꾸면 왕복이 깨진다.** 내보낸 파일을 그대로 다시 올릴 수 있어야 한다.
 
-가져오기는 고유번호(`goal_id`/`target_id`/`indicator_id`/`action_id`) 기준 upsert이고, 탭 구분(TSV)을
+가져오기는 고유번호(`track_id`/`goal_id`/`target_id`/`indicator_id`/`action_id`) 기준 upsert이고, 탭 구분(TSV)을
 자동 감지하며, 행 단위 실패는 전체를 중단하지 않고 몇 행에서 왜 실패했는지 메시지에 담는다.
 
 ### 라우팅
 
-- `(public)` 라우트 그룹 — `/`, `/indicators`, `/actions`, `/data`. 공용 헤더·푸터는 그룹 layout.
+- `(public)` 라우트 그룹
+  - `/` — 영역 전체를 비교하는 통합 현황
+  - `/[track]` — 영역 개요, `/[track]/indicators`·`/actions`·`/data`
+  - 공용 헤더·푸터는 그룹 layout, 영역 내 하위 메뉴는 `[track]/layout.tsx`
+  - **이행과제가 0건인 영역은 하위 메뉴에서 이행과제 탭이 빠진다** (환경상태·환경체감처럼 관측·조사만 하는 영역)
 - `/admin/*` — layout에서 `isAdmin()` 검사 후 미인증이면 `/login`으로 리다이렉트.
 - 모든 페이지가 `export const dynamic = "force-dynamic"` (DB 조회가 매 요청마다 필요).
-- 딥링크: `/indicators?goal=<id>` (필터), `/indicators?indicator=<id>` (상세 드로어 자동 열림).
+- 딥링크: `/[track]/indicators?goal=<id>` (필터), `?indicator=<id>` (상세 드로어 자동 열림).
+- CSV 내보내기는 `?track=<code>`로 영역별 필터가 가능하다 (`exportCsv(type, trackCode)`).
 
 ### 인증 — `src/lib/auth.ts`
 

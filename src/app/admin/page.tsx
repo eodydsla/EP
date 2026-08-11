@@ -11,6 +11,7 @@ import {
   DatabaseIcon,
   EyeOffIcon,
   LayersIcon,
+  LayoutListIcon,
   ListTreeIcon,
   SettingsIcon,
   TriangleAlertIcon,
@@ -20,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
   // 관리자 화면에서는 비공개(임시저장) 항목까지 모두 본다
-  const { goals, indicators, actions, config } = await getDashboard(true);
+  const { tracks, goals, indicators, actions, config } = await getDashboard(true);
   const counts = countByStatus(indicators.map((i) => i.computed));
 
   const [logs, valueCount] = await Promise.all([
@@ -34,7 +35,13 @@ export default async function AdminHome() {
   const noTarget = indicators.filter((i) => i.targetValue === null);
 
   const cards = [
-    { href: "/admin/structure", icon: ListTreeIcon, label: config.level1_label + "·" + config.level2_label, value: `${goals.length} · ${goals.reduce((a, g) => a + g.targets.length, 0)}` },
+    { href: "/admin/structure", icon: LayoutListIcon, label: config.level0_label, value: String(tracks.length) },
+    {
+      href: "/admin/structure",
+      icon: ListTreeIcon,
+      label: `${config.level1_label}·${config.level2_label}`,
+      value: `${goals.length} · ${goals.reduce((a, g) => a + g.targets.length, 0)}`,
+    },
     { href: "/admin/indicators", icon: LayersIcon, label: config.level3_label, value: String(indicators.length) },
     { href: "/admin/indicators", icon: DatabaseIcon, label: "실적값", value: String(valueCount) },
     { href: "/admin/actions", icon: ClipboardListIcon, label: "이행과제", value: String(actions.length) },

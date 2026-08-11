@@ -13,28 +13,41 @@ import { EyeIcon, EyeOffIcon, SearchIcon, XIcon } from "lucide-react";
 
 export function AdminIndicatorTable({
   indicators,
+  tracks,
   goals,
   targets,
   initialGoal,
   initialTarget,
+  level0Label,
+  level1Label,
+  level2Label,
 }: {
   indicators: DashIndicator[];
-  goals: { id: string; no: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
+  goals: { id: string; no: string; name: string; color: string; trackId: string }[];
   targets: { id: string; code: string; name: string; goalId: string }[];
   initialGoal?: string;
   initialTarget?: string;
+  level0Label: string;
+  level1Label: string;
+  level2Label: string;
 }) {
+  const [trackId, setTrackId] = useState("all");
   const [goalId, setGoalId] = useState(initialGoal ?? "all");
   const [targetId, setTargetId] = useState(initialTarget ?? "all");
   const [status, setStatus] = useState<Status | "all">("all");
   const [visibility, setVisibility] = useState<"all" | "published" | "draft">("all");
   const [q, setQ] = useState("");
 
-  const visibleTargets = targets.filter((t) => goalId === "all" || t.goalId === goalId);
+  const visibleGoals = goals.filter((g) => trackId === "all" || g.trackId === trackId);
+  const visibleTargets = targets.filter(
+    (t) => (goalId === "all" || t.goalId === goalId) && visibleGoals.some((g) => g.id === t.goalId),
+  );
 
   const rows = useMemo(() => {
     const kw = q.trim().toLowerCase();
     return indicators.filter((i) => {
+      if (trackId !== "all" && i.trackId !== trackId) return false;
       if (goalId !== "all" && i.goalId !== goalId) return false;
       if (targetId !== "all" && i.targetId !== targetId) return false;
       if (status !== "all" && i.computed.status !== status) return false;
@@ -43,13 +56,31 @@ export function AdminIndicatorTable({
       if (kw && !`${i.code} ${i.name} ${i.custodian ?? ""} ${i.source ?? ""}`.toLowerCase().includes(kw)) return false;
       return true;
     });
-  }, [indicators, goalId, targetId, status, visibility, q]);
+  }, [indicators, trackId, goalId, targetId, status, visibility, q]);
 
-  const hasFilter = goalId !== "all" || targetId !== "all" || status !== "all" || visibility !== "all" || q !== "";
+  const hasFilter =
+    trackId !== "all" || goalId !== "all" || targetId !== "all" || status !== "all" || visibility !== "all" || q !== "";
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+        <select
+          value={trackId}
+          onChange={(e) => {
+            setTrackId(e.target.value);
+            setGoalId("all");
+            setTargetId("all");
+          }}
+          className="h-9 rounded-md border bg-background px-2 text-sm"
+          aria-label={level0Label}
+        >
+          <option value="all">{level0Label} 전체</option>
+          {tracks.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
         <select
           value={goalId}
           onChange={(e) => {
@@ -57,9 +88,10 @@ export function AdminIndicatorTable({
             setTargetId("all");
           }}
           className="h-9 rounded-md border bg-background px-2 text-sm"
+          aria-label={level1Label}
         >
-          <option value="all">목표 전체</option>
-          {goals.map((g) => (
+          <option value="all">{level1Label} 전체</option>
+          {visibleGoals.map((g) => (
             <option key={g.id} value={g.id}>
               {g.no}. {g.name}
             </option>
@@ -70,7 +102,7 @@ export function AdminIndicatorTable({
           onChange={(e) => setTargetId(e.target.value)}
           className="h-9 max-w-[260px] rounded-md border bg-background px-2 text-sm"
         >
-          <option value="all">세부목표 전체</option>
+          <option value="all">{level2Label} 전체</option>
           {visibleTargets.map((t) => (
             <option key={t.id} value={t.id}>
               {t.code} {t.name.slice(0, 24)}
@@ -107,6 +139,7 @@ export function AdminIndicatorTable({
             variant="ghost"
             size="sm"
             onClick={() => {
+              setTrackId("all");
               setGoalId("all");
               setTargetId("all");
               setStatus("all");
@@ -127,7 +160,7 @@ export function AdminIndicatorTable({
             <tr>
               <th className="px-3 py-2 text-left font-medium">번호</th>
               <th className="px-3 py-2 text-left font-medium">지표명</th>
-              <th className="px-3 py-2 text-left font-medium">세부목표</th>
+              <th className="px-3 py-2 text-left font-medium">소속</th>
               <th className="px-3 py-2 text-right font-medium">최신값</th>
               <th className="px-3 py-2 text-right font-medium">달성도</th>
               <th className="px-3 py-2 text-left font-medium">상태</th>
@@ -152,7 +185,10 @@ export function AdminIndicatorTable({
                   </div>
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">
-                  <span className="font-mono">{i.targetCode}</span> {i.targetName.slice(0, 20)}
+                  <div className="whitespace-nowrap">{i.trackName}</div>
+                  <div>
+                    <span className="font-mono">{i.targetCode}</span> {i.targetName.slice(0, 18)}
+                  </div>
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
                   {formatValue(i.computed.latest?.value ?? null)}

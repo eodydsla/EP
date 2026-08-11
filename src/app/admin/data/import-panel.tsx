@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { TriangleAlertIcon, UploadIcon } from "lucide-react";
 
 /** 가져오는 순서 안내 — 상위 계층부터 넣어야 참조가 연결된다 */
-const ORDER = ["goals", "targets", "indicators", "values", "actions", "config"];
+const ORDER = ["tracks", "goals", "targets", "indicators", "values", "actions", "config"];
 
 export function ImportPanel({ counts }: { counts: Record<string, number> }) {
   const [type, setType] = useState<CsvType>("values");

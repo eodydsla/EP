@@ -49,6 +49,7 @@ async function main() {
   await prisma.indicator.deleteMany();
   await prisma.target.deleteMany();
   await prisma.goal.deleteMany();
+  await prisma.track.deleteMany();
   await prisma.config.deleteMany();
 
   // ── config ──────────────────────────────────────────────
@@ -59,13 +60,38 @@ async function main() {
   }
   console.log(`config: ${configRows.length}건`);
 
+  // ── tracks ──────────────────────────────────────────────
+  const trackRows = readCsv<Record<string, string>>("tracks");
+  const trackIdByCode = new Map<string, string>();
+  for (const [i, r] of trackRows.entries()) {
+    const t = await prisma.track.create({
+      data: {
+        code: r.track_id.trim(),
+        name: r.track_name.trim(),
+        description: str(r.track_desc),
+        color: str(r.color),
+        icon: str(r.icon),
+        order: int(r.order) ?? i + 1,
+        published: bool(r.display, true),
+      },
+    });
+    trackIdByCode.set(t.code, t.id);
+  }
+  console.log(`tracks: ${trackRows.length}건`);
+
   // ── goals ───────────────────────────────────────────────
   const goalRows = readCsv<Record<string, string>>("goals");
   const goalIdByCode = new Map<string, string>();
   for (const [i, r] of goalRows.entries()) {
+    const trackId = trackIdByCode.get((r.track_id ?? "").trim());
+    if (!trackId) {
+      console.warn(`⚠ goals ${r.goal_id}: 영역 ${r.track_id} 없음 — 건너뜀`);
+      continue;
+    }
     const g = await prisma.goal.create({
       data: {
         code: r.goal_id.trim(),
+        trackId,
         no: (r.goal_no ?? "").trim(),
         name: r.goal_name.trim(),
         description: str(r.goal_desc),
@@ -189,6 +215,7 @@ async function main() {
       entity: "Seed",
       label: "초기 시드 데이터 주입",
       detail: JSON.stringify({
+        tracks: trackRows.length,
         goals: goalRows.length,
         targets: targetRows.length,
         indicators: indicatorRows.length,

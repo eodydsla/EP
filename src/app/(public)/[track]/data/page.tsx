@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getDashboard } from "@/lib/data";
+import { notFound } from "next/navigation";
+import { getDashboard, findTrack } from "@/lib/data";
 import { STATUSES, STATUS_META, formatValue } from "@/lib/progress";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -7,13 +8,19 @@ import { DownloadIcon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function DataPage() {
-  const { indicators, config } = await getDashboard();
+export default async function DataPage({ params }: { params: Promise<{ track: string }> }) {
+  const { track: code } = await params;
+  const dashboard = await getDashboard();
+  const track = findTrack(dashboard, code);
+  if (!track) notFound();
+
+  const { config } = dashboard;
+  const indicators = track.indicators;
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold">데이터 · 방법론</h1>
+        <h1 className="text-2xl font-bold">{track.name} · 데이터 · 방법론</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           전체 {config.level3_label} 메타데이터와 달성도 판정 기준입니다.
         </p>
@@ -66,7 +73,7 @@ export default async function DataPage() {
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold">{config.level3_label} 메타데이터 ({indicators.length})</h2>
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/api/export?type=indicators" />}>
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/api/export?type=indicators&track=${track.code}`} />}>
             <DownloadIcon /> 전체 CSV 내려받기
           </Button>
         </div>

@@ -8,7 +8,8 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function DataPage() {
-  const [goals, targets, indicators, values, actions, configs] = await Promise.all([
+  const [tracks, goals, targets, indicators, values, actions, configs] = await Promise.all([
+    prisma.track.count(),
     prisma.goal.count(),
     prisma.target.count(),
     prisma.indicator.count(),
@@ -17,6 +18,7 @@ export default async function DataPage() {
     prisma.config.count(),
   ]);
   const counts: Record<string, number> = {
+    tracks,
     goals,
     targets,
     indicators,

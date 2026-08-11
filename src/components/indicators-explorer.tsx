@@ -19,6 +19,7 @@ export function IndicatorsExplorer({
   indicators,
   initialGoal,
   initialIndicator,
+  level1Label,
   level2Label,
 }: {
   goals: { id: string; no: string; name: string; color: string }[] | DashGoal[];
@@ -26,6 +27,7 @@ export function IndicatorsExplorer({
   initialGoal?: string;
   /** ?indicator=<id> 로 들어오면 해당 지표 상세를 바로 연다 (개요 화면에서 클릭했을 때) */
   initialIndicator?: string;
+  level1Label: string;
   level2Label: string;
 }) {
   const [goalId, setGoalId] = useState<string>(initialGoal ?? "all");
@@ -88,7 +90,7 @@ export function IndicatorsExplorer({
       <div className="flex flex-col gap-3 rounded-xl border bg-card p-3">
         <div className="flex flex-wrap items-center gap-2">
           <FilterChip active={goalId === "all"} onClick={() => setGoalId("all")}>
-            전체 {indicators.length}
+            {level1Label} 전체 {indicators.length}
           </FilterChip>
           {goals.map((g) => {
             const n = indicators.filter((i) => i.goalId === g.id).length;

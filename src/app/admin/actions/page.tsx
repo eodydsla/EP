@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminActionsPage() {
   const [actions, goals, targets, config] = await Promise.all([
     prisma.action.findMany({ orderBy: [{ order: "asc" }, { code: "asc" }] }),
-    prisma.goal.findMany({ orderBy: [{ order: "asc" }, { code: "asc" }] }),
+    prisma.goal.findMany({ orderBy: [{ order: "asc" }, { code: "asc" }], include: { track: true } }),
     prisma.target.findMany({ orderBy: [{ order: "asc" }, { code: "asc" }] }),
     getConfig(),
   ]);
@@ -39,7 +39,7 @@ export default async function AdminActionsPage() {
         }))}
         goals={goals.map((g, i) => ({
           id: g.id,
-          label: `${g.no}. ${g.name}`,
+          label: `${g.track.name} › ${g.no}. ${g.name}`,
           color: goalColor(g.color, i),
         }))}
         targets={targets.map((t) => ({ id: t.id, label: `${t.code} ${t.name}`, goalId: t.goalId }))}
