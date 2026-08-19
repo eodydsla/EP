@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
 
-const COOKIE = "ksdgs_session";
+const COOKIE = "ep_session";
 const MAX_AGE = 60 * 60 * 12; // 12시간
 
 function secret() {

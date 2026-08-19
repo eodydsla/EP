@@ -14,8 +14,8 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "K-SDGs 환경분야 지표 대시보드",
-  description: "기후변화 대응·해양생태계·육상생태계 지표 이행현황 대시보드",
+  title: "환경계획(EP) 통합 모니터링 대시보드",
+  description: "계획이행·환경상태·환경체감을 한 곳에서 확인하는 환경계획(EP) 모니터링 대시보드",
 };
 
 export default function RootLayout({
