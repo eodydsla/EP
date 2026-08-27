@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |---|---|
 | 명칭 | 환경계획 통합 모니터링 대시보드 (EP Dashboard, EP = Environmental Planning) |
-| 문서 작성일 | 2026-08-19 |
+| 문서 작성일 | 2026-08-23 |
 | 대상 버전 | v1.0 — 모니터링 영역 3분할 + EP 브랜딩 반영본 |
 | 저장소 | `/home/dyjin/work/ep_dashboard` (branch `master`) |
 | 개발 방식 | Claude Code 기반. 사람이 요구·검수 / AI가 설계·구현·검증 |
